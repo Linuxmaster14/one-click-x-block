@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         One-Click X/Twitter Block
-// @version      1.2.0
+// @version      1.3.0
 // @description  One-click block button next to every username on X/Twitter.
 // @author       linuxmaster14
 // @license      MIT
@@ -229,6 +229,27 @@
         return (m && !RESERVED.has(m[1].toLowerCase())) ? m[1] : null;
     }
 
+    function hasTimeNearby(link) {
+        const tweet = link.closest('article[data-testid="tweet"]');
+        if (!tweet) return false;
+        let el = link.parentElement;
+        for (let i = 0; i < 4 && el && el !== tweet; i++) {
+            if (el.querySelector('time[datetime]')) return true;
+            el = el.parentElement;
+        }
+        return false;
+    }
+
+    function hasUsernameNearby(timeLink, username) {
+        let el = timeLink.parentElement;
+        for (let i = 0; i < 4 && el; i++) {
+            const found = el.querySelector('a[href="/' + username + '"]');
+            if (found && found.textContent.trim().startsWith('@')) return true;
+            el = el.parentElement;
+        }
+        return false;
+    }
+
     function injectOnUsernameLinks() {
         const me = getMyUsername();
         for (const link of document.querySelectorAll('a[role="link"][href^="/"]')) {
@@ -241,15 +262,14 @@
             const text = link.textContent.trim();
             if (!text.startsWith('@')) continue;
 
-            // Skip if inside a tweet (timestamps handle those)
-            if (link.closest('article[data-testid="tweet"]')) continue;
-
-            // Skip @mentions in bio/description (profile pages and UserCells)
             if (link.closest('[data-testid="UserDescription"]')) continue;
+            if (link.closest('[data-testid="tweetText"]')) continue;
+
+            // In tweets: if there's an inline time nearby, let timestamp handle it
+            if (hasTimeNearby(link)) continue;
 
             const username = hrefMatch[1];
 
-            // In UserCells, only show for the cell's own user, not bio @mentions
             const cell = link.closest('[data-testid="UserCell"]');
             if (cell) {
                 const cellUser = getUsernameFromCell(cell);
@@ -282,6 +302,9 @@
             const username = hrefMatch[1];
             if (RESERVED.has(username.toLowerCase())) continue;
             if (me && username.toLowerCase() === me) continue;
+
+            // Only show if @username is nearby (same header row)
+            if (!hasUsernameNearby(timeLink, username)) continue;
 
             timeLink.setAttribute(ATTR, '1');
             timeLink.style.position = 'relative';
