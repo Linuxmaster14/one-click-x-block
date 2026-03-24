@@ -244,6 +244,9 @@
             // Skip if inside a tweet (timestamps handle those)
             if (link.closest('article[data-testid="tweet"]')) continue;
 
+            // Skip @mentions in bio/description (profile pages and UserCells)
+            if (link.closest('[data-testid="UserDescription"]')) continue;
+
             const username = hrefMatch[1];
 
             // In UserCells, only show for the cell's own user, not bio @mentions
@@ -306,17 +309,14 @@
             existing.remove();
         }
 
-        // Find the @username link strictly in the profile header, not in tweets
-        const headerArea = col.querySelector('[data-testid="UserName"]')
-            || col.querySelector('[data-testid="UserProfileHeader_Items"]');
-        if (!headerArea) return;
-
+        // Find the @username link in the profile header (not in tweets or bio)
         let handleLink = null;
-        for (const l of headerArea.querySelectorAll('a[role="link"][href^="/"]')) {
-            if (l.textContent.trim().startsWith('@') && l.getAttribute('href') === '/' + username) {
-                handleLink = l;
-                break;
-            }
+        for (const l of col.querySelectorAll('a[role="link"][href="/' + username + '"]')) {
+            if (!l.textContent.trim().startsWith('@')) continue;
+            if (l.closest('article[data-testid="tweet"]')) continue;
+            if (l.closest('[data-testid="UserDescription"]')) continue;
+            handleLink = l;
+            break;
         }
         if (!handleLink) return;
 
